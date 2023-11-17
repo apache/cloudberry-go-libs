@@ -1,67 +1,77 @@
-# Contributing
+Cloudberry Database community welcomes contributions from anyone, new and
+experienced! We appreciate your interest in contributing. This guide will help
+you get started with the contribution.
 
-We warmly welcome and appreciate contributions from the community! By participating you agree to the [code of conduct](https://github.com/greenplum-db/gpupgrade/blob/main/CODE-OF-CONDUCT.md).
+## Code of Conduct
 
-## Development 
-- Gather input early and often rather than waiting until the end. 
-  - Have in-person conversations.
-  - Regularly share your branch of work.
-  - Consider making a draft PR.
-  - Pair as needed.
-- Prefer short names based on context such as: file vs. database_file
-  - People will be familiar with the code, so err on the side of brevity but avoid extremes.
-- Generally follow surrounding code style and conventions. Use `make lint`.
-- Have tests including unit and end-to-end.
-- Resources:
-  - [Effective Go](https://golang.org/doc/effective_go.html)
-  - [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-  - [Practical Go](https://dave.cheney.net/practical-go/presentations/qcon-china.html)
-  - [The Go Memory Model](https://go.dev/ref/mem)
-  - [Protocol Buffers Syle Guide](https://developers.google.com/protocol-buffers/docs/style)
-  - [BASH Style Guide](https://google.github.io/styleguide/shellguide.html)
-  - [Refactoring by Martin Fowler](https://martinfowler.com/books/refactoring.html) including the [Refactoring website](https://refactoring.com/). 
+Everyone who participates in Cloudberry Database, either as a user or a
+contributor, is obliged to follow our community [Code of
+Conduct](./CODE_OF_CONDUCT.md). Every violation against it will be reviewed
+and investigated and will result in a response that is deemed necessary and
+appropriate to the circumstances. The moderator team is obligated to maintain
+confidentiality regarding the reporter of an incident.
 
-## Contributing/Submitting a Pull Request 
-- Sign our [Contributor License Agreement](https://cla.vmware.com/cla/1/preview).
+Some behaviors that contribute to creating a positive environment include:
 
-- Fork the repository on GitHub.
+* Use welcoming and inclusive language. 
+* Respect differing viewpoints and experiences. 
+* Accept constructive criticism gracefully. 
+* Foster what's best for the community. 
+* Show empathy for community members.
 
-- Clone the repository.
+## GitHub Contribution Workflow
 
-- Create a change
+1. Fork this repo to your own GitHub account.
+2. Clone down the repo to your local system.
 
-    - Create a topic branch.
+``` 
+git clone https://github.com/your-user-name/gp-common-go-libs.git
+```
 
-    - Make commits as logical units for ease of reviewing.
+3. Add the upstream repo. (You only have to do this once, not every time.)
 
-    - Try and follow similar coding styles as found throughout the code base.
+``` 
+git remote add upstream https://github.com/cloudberrydb/gp-common-go-libs.git
+```
 
-    - Rebase with main often to stay in sync with upstream.
+4. Create a new branch to hold your work.
 
-    - Add appropriate tests and view coverage with `make coverage`.
+``` 
+git checkout -b new-branch-name
+```
 
-    - Ensure a well written commit message as explained [here](https://chris.beams.io/posts/git-commit/) and [here](https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
-     
-    - Address any linter issues with `make lint`.
+5. Work on your new code. 
+6. Commit your changes.
 
-- Submit a pull request (PR).
+``` 
+git add <the change files> 
+git commit
+```
 
-    - Create a [pull request from your fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/.creating-a-pull-request-from-a-fork).
+7. Push your changes to your GitHub repo.
 
-## Code Reviews 
-- Follow [Google's Code Review Guidelines](https://google.github.io/eng-practices/review/reviewer/)
-- PR comments should have technical explanations.
-- Avoid “I prefer it this way”. See [Principles Section](https://google.github.io/eng-practices/review/reviewer/standard.html).
-- Avoid these [Toxic Behaviors](https://medium.com/@sandya.sankarram/unlearning-toxic-behaviors-in-a-code-review-culture-b7c295452a3c) ([video](https://www.youtube.com/watch?v=QIUwGa-MttQ))
-- Use Github's "Request changes" very sparingly. This indicates that there are critical blockers that absolutely must change before approval.
-- Use Github's “Start a review” feature to submit multiple comments into a single review.
-- Address PR comments with fixup or squash commits. This makes it easier for the review to see what changed.
-  - Ideally wait until the PR has been approved to squash these commits, but sometimes it might be cleaner and easier to follow to combine them earlier.
-  - Rebasing your PR with main is good practice.
-- Use Github’s “Resolve Conversation” button to indicate you addressed the feedback. There is no need for a comment unless you deviated from the reviewer's specific feedback.
+```
+git push origin new-branch-name
+```
 
-# Community
+8. Open a PR(Pull Request).
 
-Connect with Greenplum on:
-- [Slack](https://greenplum.slack.com/)
-- [gpdb-dev mailing list](https://groups.google.com/a/greenplum.org/forum/#!forum/gpdb-dev/join)
+Go to the repo on GitHub. There will be a message about your recently pushed
+branch, asking if you would like to open a pull request. Follow the prompts,
+compare across repositories, and submit the PR.
+
+9. Get your code reviewed.
+10. Congratulations! Once your PR is approved, and passes the CI/CD without
+errors, then the code will be merged. Your code will be shipped in the recent
+future releases.
+
+## Sync your branch with the upstream
+
+Before working on your next contribution, make sure your local repository is
+up to date:
+
+```
+git checkout main 
+git fetch upstream 
+git rebase upstream/main
+```
