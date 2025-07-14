@@ -194,6 +194,17 @@ func (dbconn *DBConn) Connect(numConns int, utilityMode ...bool) error {
 	if dbconn.ConnPool != nil {
 		return errors.Errorf("The database connection must be closed before reusing the connection")
 	}
+
+	dbname := EscapeConnectionParam(dbconn.DBName)
+	user := EscapeConnectionParam(dbconn.User)
+	krbsrvname := operating.System.Getenv("PGKRBSRVNAME")
+	if krbsrvname == "" {
+		krbsrvname = "postgres"
+	}
+	sslmode := operating.System.Getenv("PGSSLMODE")
+	if sslmode == "" {
+		sslmode = "prefer"
+	}
 	// This string takes in the literal user/database names. They do not need
 	// to be escaped or quoted.
 	// By default pgx/v4 turns on automatic prepared statement caching. This
@@ -201,7 +212,8 @@ func (dbconn *DBConn) Connect(numConns int, utilityMode ...bool) error {
 	// the same object again, then querying for the object in the same
 	// connection will generate a cache lookup failure. To disable pgx's
 	// automatic prepared statement cache we set statement_cache_capacity to 0.
-	connStr := fmt.Sprintf("postgres://%s@%s:%d/%s?sslmode=disable&statement_cache_capacity=0", dbconn.User, dbconn.Host, dbconn.Port, dbconn.DBName)
+	connStr := fmt.Sprintf(`user='%s' dbname='%s' krbsrvname='%s' host=%s port=%d sslmode='%s' statement_cache_capacity=0`,
+		user, dbname, krbsrvname, dbconn.Host, dbconn.Port, sslmode)
 
 	dbconn.ConnPool = make([]*sqlx.DB, numConns)
 	if len(utilityMode) > 1 {
@@ -211,8 +223,8 @@ func (dbconn *DBConn) Connect(numConns int, utilityMode ...bool) error {
 		// and GPDB 6 and earlier (gp_session_role), and we don't get the
 		// database version until after the connection is established, so
 		// we need to just try one first and see whether it works.
-		roleConnStr := connStr + "&gp_role=utility"
-		sessionRoleConnStr := connStr + "&gp_session_role=utility"
+		roleConnStr := connStr + " gp_role=utility"
+		sessionRoleConnStr := connStr + " gp_session_role=utility"
 		utilConn, err := dbconn.Driver.Connect("pgx", sessionRoleConnStr)
 		if utilConn != nil {
 			utilConn.Close()
@@ -340,6 +352,14 @@ func (dbconn *DBConn) Select(destination interface{}, query string, whichConn ..
 	return dbconn.ConnPool[connNum].Select(destination, query)
 }
 
+func (dbconn *DBConn) SelectContext(ctx context.Context, destination interface{}, query string, whichConn ...int) error {
+	connNum := dbconn.ValidateConnNum(whichConn...)
+	if dbconn.Tx[connNum] != nil {
+		return dbconn.Tx[connNum].SelectContext(ctx, destination, query)
+	}
+	return dbconn.ConnPool[connNum].SelectContext(ctx, destination, query)
+}
+
 func (dbconn *DBConn) QueryWithArgs(query string, args ...interface{}) (*sqlx.Rows, error) {
 	if dbconn.Tx[0] != nil {
 		return dbconn.Tx[0].Queryx(query, args...)
@@ -353,6 +373,14 @@ func (dbconn *DBConn) Query(query string, whichConn ...int) (*sqlx.Rows, error) 
 		return dbconn.Tx[connNum].Queryx(query)
 	}
 	return dbconn.ConnPool[connNum].Queryx(query)
+}
+
+func (dbconn *DBConn) QueryContext(ctx context.Context, query string, whichConn ...int) (*sqlx.Rows, error) {
+	connNum := dbconn.ValidateConnNum(whichConn...)
+	if dbconn.Tx[connNum] != nil {
+		return dbconn.Tx[connNum].QueryxContext(ctx, query)
+	}
+	return dbconn.ConnPool[connNum].QueryxContext(ctx, query)
 }
 
 /*
@@ -370,6 +398,16 @@ func (dbconn *DBConn) ValidateConnNum(whichConn ...int) int {
 		gplog.Fatal(errors.Errorf("Invalid connection number: %d", whichConn[0]), "")
 	}
 	return whichConn[0]
+}
+
+/*
+ * Other useful/helper functions involving DBConn
+ */
+
+func EscapeConnectionParam(param string) string {
+	param = strings.Replace(param, `\`, `\\`, -1)
+	param = strings.Replace(param, `'`, `\'`, -1)
+	return param
 }
 
 /*
@@ -439,6 +477,61 @@ func SelectStringSlice(connection *DBConn, query string, whichConn ...int) ([]st
 	}
 	if rows.Rows.Err() != nil {
 		return []string{}, rows.Rows.Err()
+	}
+	return retval, nil
+}
+
+/*
+ * The below are convenience functions for selecting one or more ints that may
+ * be NULL or may not exist, with the same functionality (and the same rationale)
+ * as SelectString and SelectStringSlice; see the comments for those functions,
+ * above, for more details.
+ */
+func MustSelectInt(connection *DBConn, query string, whichConn ...int) int {
+	str, err := SelectInt(connection, query, whichConn...)
+	gplog.FatalOnError(err)
+	return str
+}
+
+func SelectInt(connection *DBConn, query string, whichConn ...int) (int, error) {
+	results, err := SelectIntSlice(connection, query, whichConn...)
+	if err != nil {
+		return 0, err
+	}
+	if len(results) == 1 {
+		return results[0], nil
+	} else if len(results) > 1 {
+		return 0, errors.Errorf("Too many rows returned from query: got %d rows, expected 1 row", len(results))
+	}
+	return 0, nil
+}
+
+func MustSelectIntSlice(connection *DBConn, query string, whichConn ...int) []int {
+	str, err := SelectIntSlice(connection, query, whichConn...)
+	gplog.FatalOnError(err)
+	return str
+}
+
+func SelectIntSlice(connection *DBConn, query string, whichConn ...int) ([]int, error) {
+	connNum := connection.ValidateConnNum(whichConn...)
+	rows, err := connection.Query(query, connNum)
+	if err != nil {
+		return []int{}, err
+	}
+	if cols, _ := rows.Rows.Columns(); len(cols) > 1 {
+		return []int{}, errors.Errorf("Too many columns returned from query: got %d columns, expected 1 column", len(cols))
+	}
+	retval := make([]int, 0)
+	for rows.Rows.Next() {
+		var result sql.NullInt32
+		err = rows.Rows.Scan(&result)
+		if err != nil {
+			return []int{}, err
+		}
+		retval = append(retval, int(result.Int32))
+	}
+	if rows.Rows.Err() != nil {
+		return []int{}, rows.Rows.Err()
 	}
 	return retval, nil
 }

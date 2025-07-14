@@ -1,23 +1,26 @@
 package cluster_test
 
 import (
+	"context"
 	"database/sql/driver"
+	joinerrs "errors"
 	"fmt"
 	"os"
 	"os/user"
+	"path"
 	"testing"
+	"time"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/cloudberrydb/gp-common-go-libs/cluster"
 	"github.com/cloudberrydb/gp-common-go-libs/dbconn"
 	"github.com/cloudberrydb/gp-common-go-libs/operating"
 	"github.com/cloudberrydb/gp-common-go-libs/testhelper"
+	"github.com/onsi/gomega/gbytes"
 	"github.com/pkg/errors"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
 )
 
 func TestCluster(t *testing.T) {
@@ -35,6 +38,17 @@ func expectPathToExist(path string) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		Fail(fmt.Sprintf("Expected %s to exist", path))
 	}
+}
+
+func createSegConfigFile(content string) *os.File {
+	filename := path.Join(os.TempDir(), "gpsegconfig_dump")
+	confFile, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	Expect(err).To(BeNil())
+	_, err = confFile.WriteString(content)
+	Expect(err).To(BeNil())
+
+	defer confFile.Close()
+	return confFile
 }
 
 var _ = BeforeSuite(func() {
@@ -64,6 +78,7 @@ var _ = Describe("cluster/cluster tests", func() {
 		testExecutor = &testhelper.TestExecutor{}
 		testCluster = cluster.NewCluster([]cluster.SegConfig{coordinatorSeg, localSegOne, remoteSegOne})
 		testCluster.Executor = testExecutor
+		logfile.Clear()
 	})
 	Describe("ConstructSSHCommand", func() {
 		It("constructs a local ssh command", func() {
@@ -75,11 +90,189 @@ var _ = Describe("cluster/cluster tests", func() {
 			Expect(cmd).To(Equal([]string{"ssh", "-o", "StrictHostKeyChecking=no", "testUser@some-host", "ls"}))
 		})
 	})
+
+	Describe("GetSegmentConfigurationFromFile", func() {
+		It("should return expected result for a new (10 fields) gpsegconfig_dump file", func() {
+			//create temp file with the sample data from new version
+			expRes := cluster.SegConfig{
+				DbID:          1,
+				ContentID:     -1,
+				Role:          "p",
+				PreferredRole: "p",
+				Mode:          "n",
+				Status:        "u",
+				Port:          7000,
+				Hostname:      "localhost",
+				Address:       "localhost",
+				DataDir:       "/data/qddir/demoDataDir-1",
+			}
+			content := fmt.Sprintf("%d %d %s %s %s %s %d %s %s %s", expRes.DbID, expRes.ContentID, expRes.Role, expRes.PreferredRole, expRes.Mode, expRes.Status, expRes.Port, expRes.Hostname, expRes.Address, expRes.DataDir)
+			tempConfFile := createSegConfigFile(content)
+
+			//call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile(os.TempDir())
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(1))
+			Expect(result[0]).To(Equal(expRes))
+
+			//Cleanup
+			os.Remove(tempConfFile.Name())
+		})
+
+		It("should return expected result for an old (9 fields) gpsegconfig_dump file", func() {
+			//create temp file with the sample data from new version
+			expRes := cluster.SegConfig{
+				DbID:          1,
+				ContentID:     -1,
+				Role:          "p",
+				PreferredRole: "p",
+				Mode:          "n",
+				Status:        "u",
+				Port:          7000,
+				Hostname:      "localhost",
+				Address:       "localhost",
+			}
+			content := fmt.Sprintf("%d %d %s %s %s %s %d %s %s", expRes.DbID, expRes.ContentID, expRes.Role, expRes.PreferredRole, expRes.Mode, expRes.Status, expRes.Port, expRes.Hostname, expRes.Address)
+			tempConfFile := createSegConfigFile(content)
+
+			//call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile(os.TempDir())
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(1))
+			Expect(result[0]).To(Equal(expRes))
+
+			//Cleanup
+			os.Remove(tempConfFile.Name())
+		})
+
+		It("should return expected result for multiline gpsegconfig_dump file", func() {
+			//create temp file with the sample data from new version
+			expRes := []cluster.SegConfig{
+				{
+					DbID:          1,
+					ContentID:     -1,
+					Role:          "p",
+					PreferredRole: "p",
+					Mode:          "n",
+					Status:        "u",
+					Port:          7000,
+					Hostname:      "localhost",
+					Address:       "localhost",
+					DataDir:       "/data/qddir/demoDataDir-1",
+				},
+				{
+					DbID:          2,
+					ContentID:     -1,
+					Role:          "m",
+					PreferredRole: "m",
+					Mode:          "n",
+					Status:        "u",
+					Port:          7001,
+					Hostname:      "localhost",
+					Address:       "localhost",
+					DataDir:       "/data/standby/demoDataDir-2",
+				},
+			}
+			var content string
+			for _, segconf := range expRes {
+				text := fmt.Sprintf("%d %d %s %s %s %s %d %s %s %s\n", segconf.DbID, segconf.ContentID, segconf.Role, segconf.PreferredRole, segconf.Mode, segconf.Status, segconf.Port, segconf.Hostname, segconf.Address, segconf.DataDir)
+				content = content + text
+			}
+
+			tempConfFile := createSegConfigFile(content)
+
+			//call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile(os.TempDir())
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(2))
+			Expect(result).To(Equal(expRes))
+
+			//Cleanup
+			os.Remove(tempConfFile.Name())
+		})
+
+		It("should fail when empty coordinator data directory is provided to function", func() {
+			// Call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile("")
+
+			// Assertions
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			Expect(err.Error()).To(ContainSubstring("Coordinator data directory path is empty"))
+		})
+
+		It("should fail when reading invalid file/path", func() {
+			// Call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile("/tmp/")
+
+			// Assertions
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			Expect(err.Error()).To(ContainSubstring("Failed to open file /tmp/gpsegconfig_dump. Error: open /tmp/gpsegconfig_dump: no such file or directory"))
+		})
+
+		It("should return an error for a file with less than 9 number of fields", func() {
+			// Create a temporary file with incorrect fields content
+			content := "invalid_content\n"
+			tempConfFile := createSegConfigFile(content)
+
+			// Call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile(os.TempDir())
+
+			// Assertions
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			Expect(err.Error()).To(ContainSubstring("Unexpected number of fields (1) in line: invalid_content"))
+
+			// Cleanup
+			os.Remove(tempConfFile.Name())
+		})
+
+		It("should return an error for a file with more than 10 number of fields", func() {
+			// Create a temporary file with incorrect fields content
+			content := "1 -1 p p n u 7000 localhost localhost /data/dir-1 dummy\n"
+			tempConfFile := createSegConfigFile(content)
+
+			// Call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile(os.TempDir())
+
+			// Assertions
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			Expect(err.Error()).To(ContainSubstring("Unexpected number of fields (11) in line: 1 -1 p p n u 7000 localhost localhost /data/dir-1 dummy"))
+
+			// Cleanup
+			os.Remove(tempConfFile.Name())
+		})
+
+		It("should fail when there is type conversion error", func() {
+			// Create a temporary file with one invalid int field
+			content := "1a -1 p p n u 7000 localhost localhost /data/dir1\n"
+			tempConfFile := createSegConfigFile(content)
+
+			//Call the function under test
+			result, err := cluster.GetSegmentConfigurationFromFile(os.TempDir())
+
+			// Assertions
+			Expect(err).To(HaveOccurred())
+			Expect(result).To(BeNil())
+			Expect(err.Error()).To(ContainSubstring("Failed to convert dbID with value 1a to an int. Error: strconv.Atoi: parsing \"1a\": invalid syntax"))
+
+			//Cleanup
+			os.Remove(tempConfFile.Name())
+		})
+
+	})
+
 	Describe("GetSegmentConfiguration", func() {
-		header := []string{"contentid", "hostname", "datadir"}
-		localSegOne := []driver.Value{"0", "localhost", "/data/gpseg0"}
-		localSegTwo := []driver.Value{"1", "localhost", "/data/gpseg1"}
-		remoteSegOne := []driver.Value{"2", "remotehost", "/data/gpseg2"}
+		header := []string{"dbid", "contentid", "role", "preferredrole", "mode", "status", "port", "hostname", "address", "datadir"}
+		localSegOneValue := cluster.SegConfig{1, 0, "p", "p", "s", "u", 6002, "localhost", "127.0.0.1", "/data/gpseg0"}
+		localSegTwoValue := cluster.SegConfig{2, 1, "m", "m", "s", "u", 6003, "localhost", "127.0.0.1", "/data/gpseg1"}
+		remoteSegOneValue := cluster.SegConfig{3, 2, "p", "m", "s", "u", 6004, "remotehost", "127.0.0.1", "/data/gpseg2"}
+
+		localSegOne := []driver.Value{localSegOneValue.DbID, localSegOneValue.ContentID, localSegOneValue.Role, localSegOneValue.PreferredRole, localSegOneValue.Mode, localSegOneValue.Status, localSegOneValue.Port, localSegOneValue.Hostname, localSegOneValue.Address, localSegOneValue.DataDir}
+		localSegTwo := []driver.Value{localSegTwoValue.DbID, localSegTwoValue.ContentID, localSegTwoValue.Role, localSegTwoValue.PreferredRole, localSegTwoValue.Mode, localSegTwoValue.Status, localSegTwoValue.Port, localSegTwoValue.Hostname, localSegTwoValue.Address, localSegTwoValue.DataDir}
+		remoteSegOne := []driver.Value{remoteSegOneValue.DbID, remoteSegOneValue.ContentID, remoteSegOneValue.Role, remoteSegOneValue.PreferredRole, remoteSegOneValue.Mode, remoteSegOneValue.Status, remoteSegOneValue.Port, remoteSegOneValue.Hostname, remoteSegOneValue.Address, remoteSegOneValue.DataDir}
 
 		It("returns only primaries for a single-host, single-segment cluster", func() {
 			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...)
@@ -87,8 +280,7 @@ var _ = Describe("cluster/cluster tests", func() {
 			results, err := cluster.GetSegmentConfiguration(connection)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(results)).To(Equal(1))
-			Expect(results[0].DataDir).To(Equal("/data/gpseg0"))
-			Expect(results[0].Hostname).To(Equal("localhost"))
+			Expect(results[0]).To(Equal(localSegOneValue))
 		})
 		It("returns only primaries for a single-host, multi-segment cluster", func() {
 			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...).AddRow(localSegTwo...)
@@ -96,10 +288,8 @@ var _ = Describe("cluster/cluster tests", func() {
 			results, err := cluster.GetSegmentConfiguration(connection)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(results)).To(Equal(2))
-			Expect(results[0].DataDir).To(Equal("/data/gpseg0"))
-			Expect(results[0].Hostname).To(Equal("localhost"))
-			Expect(results[1].DataDir).To(Equal("/data/gpseg1"))
-			Expect(results[1].Hostname).To(Equal("localhost"))
+			Expect(results[0]).To(Equal(localSegOneValue))
+			Expect(results[1]).To(Equal(localSegTwoValue))
 		})
 		It("returns only primaries for a multi-host, multi-segment cluster", func() {
 			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...).AddRow(localSegTwo...).AddRow(remoteSegOne...)
@@ -107,12 +297,9 @@ var _ = Describe("cluster/cluster tests", func() {
 			results, err := cluster.GetSegmentConfiguration(connection)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(results)).To(Equal(3))
-			Expect(results[0].DataDir).To(Equal("/data/gpseg0"))
-			Expect(results[0].Hostname).To(Equal("localhost"))
-			Expect(results[1].DataDir).To(Equal("/data/gpseg1"))
-			Expect(results[1].Hostname).To(Equal("localhost"))
-			Expect(results[2].DataDir).To(Equal("/data/gpseg2"))
-			Expect(results[2].Hostname).To(Equal("remotehost"))
+			Expect(results[0]).To(Equal(localSegOneValue))
+			Expect(results[1]).To(Equal(localSegTwoValue))
+			Expect(results[2]).To(Equal(remoteSegOneValue))
 		})
 		It("returns primaries and mirrors for a single-host, single-segment cluster", func() {
 			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...)
@@ -120,8 +307,7 @@ var _ = Describe("cluster/cluster tests", func() {
 			results, err := cluster.GetSegmentConfiguration(connection, true)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(results)).To(Equal(1))
-			Expect(results[0].DataDir).To(Equal("/data/gpseg0"))
-			Expect(results[0].Hostname).To(Equal("localhost"))
+			Expect(results[0]).To(Equal(localSegOneValue))
 		})
 		It("returns primaries and mirrors for a single-host, multi-segment cluster", func() {
 			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...).AddRow(localSegTwo...)
@@ -129,10 +315,8 @@ var _ = Describe("cluster/cluster tests", func() {
 			results, err := cluster.GetSegmentConfiguration(connection, true)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(results)).To(Equal(2))
-			Expect(results[0].DataDir).To(Equal("/data/gpseg0"))
-			Expect(results[0].Hostname).To(Equal("localhost"))
-			Expect(results[1].DataDir).To(Equal("/data/gpseg1"))
-			Expect(results[1].Hostname).To(Equal("localhost"))
+			Expect(results[0]).To(Equal(localSegOneValue))
+			Expect(results[1]).To(Equal(localSegTwoValue))
 		})
 		It("returns primaries and mirrors for a multi-host, multi-segment cluster", func() {
 			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...).AddRow(localSegTwo...).AddRow(remoteSegOne...)
@@ -140,12 +324,36 @@ var _ = Describe("cluster/cluster tests", func() {
 			results, err := cluster.GetSegmentConfiguration(connection, true)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(results)).To(Equal(3))
-			Expect(results[0].DataDir).To(Equal("/data/gpseg0"))
-			Expect(results[0].Hostname).To(Equal("localhost"))
-			Expect(results[1].DataDir).To(Equal("/data/gpseg1"))
-			Expect(results[1].Hostname).To(Equal("localhost"))
-			Expect(results[2].DataDir).To(Equal("/data/gpseg2"))
-			Expect(results[2].Hostname).To(Equal("remotehost"))
+			Expect(results[0]).To(Equal(localSegOneValue))
+			Expect(results[1]).To(Equal(localSegTwoValue))
+			Expect(results[2]).To(Equal(remoteSegOneValue))
+		})
+		It("returns mirrors for a single-host, single-segment cluster", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			results, err := cluster.GetSegmentConfiguration(connection, true, true)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(results)).To(Equal(1))
+			Expect(results[0]).To(Equal(localSegOneValue))
+		})
+		It("returns mirrors for a single-host, multi-segment cluster", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...).AddRow(localSegTwo...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			results, err := cluster.GetSegmentConfiguration(connection, true, true)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(results)).To(Equal(2))
+			Expect(results[0]).To(Equal(localSegOneValue))
+			Expect(results[1]).To(Equal(localSegTwoValue))
+		})
+		It("returns mirrors for a multi-host, multi-segment cluster", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(localSegOne...).AddRow(localSegTwo...).AddRow(remoteSegOne...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			results, err := cluster.GetSegmentConfiguration(connection, true, true)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(results)).To(Equal(3))
+			Expect(results[0]).To(Equal(localSegOneValue))
+			Expect(results[1]).To(Equal(localSegTwoValue))
+			Expect(results[2]).To(Equal(remoteSegOneValue))
 		})
 	})
 
@@ -261,8 +469,43 @@ var _ = Describe("cluster/cluster tests", func() {
 			testCluster.Executor = &cluster.GPDBExecutor{}
 			output, err := testCluster.ExecuteLocalCommand(commandStr)
 
-			Expect(output).To(Equal("bash: some-non-existent-command: command not found\n"))
+			Expect(output).To(ContainSubstring("some-non-existent-command: command not found\n"))
 			Expect(err.Error()).To(Equal("exit status 127"))
+		})
+	})
+	Describe("ExecuteLocalCommandWithContext", func() {
+		BeforeEach(func() {
+			os.MkdirAll("/tmp/gp_common_go_libs_test", 0777)
+		})
+		AfterEach(func() {
+			os.RemoveAll("/tmp/gp_common_go_libs_test")
+		})
+		It("runs the specified command", func() {
+			testCluster := cluster.Cluster{}
+			commandStr := "touch /tmp/gp_common_go_libs_test/foo"
+			testCluster.Executor = &cluster.GPDBExecutor{}
+			testCluster.ExecuteLocalCommandWithContext(commandStr, context.TODO())
+
+			expectPathToExist("/tmp/gp_common_go_libs_test/foo")
+		})
+		It("returns any error generated by the specified command", func() {
+			testCluster := cluster.Cluster{}
+			commandStr := "some-non-existent-command /tmp/gp_common_go_libs_test/foo"
+			testCluster.Executor = &cluster.GPDBExecutor{}
+			output, err := testCluster.ExecuteLocalCommandWithContext(commandStr, context.TODO())
+
+			Expect(output).To(ContainSubstring("some-non-existent-command: command not found\n"))
+			Expect(err.Error()).To(Equal("exit status 127"))
+		})
+		It("kills the command if it runs beyond the timeout", func() {
+			testCluster := cluster.Cluster{}
+			commandStr := "while true; do echo Keep running; sleep 0.1; done"
+			ctx, _ := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			testCluster.Executor = &cluster.GPDBExecutor{}
+			output, err := testCluster.ExecuteLocalCommandWithContext(commandStr, ctx)
+			Expect(ctx.Err()).To(Equal(context.DeadlineExceeded))
+			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("Keep running\nKeep running\n"))
 		})
 	})
 	Describe("ExecuteClusterCommand", func() {
@@ -314,58 +557,203 @@ var _ = Describe("cluster/cluster tests", func() {
 			}
 		})
 	})
-	Describe("CheckClusterError", func() {
-		var (
-			remoteOutput *cluster.RemoteOutput
-			failedCmd    cluster.ShellCommand
-		)
+	Describe("ExecuteClusterCommandWithRetries", func() {
+		var testDir = "/tmp/gp_common_go_libs_test"
 		BeforeEach(func() {
-			failedCmd = cluster.ShellCommand{
-				Scope:         0, // The appropriate scope will be set in each test
-				Content:       1,
-				Host:          "remotehost1",
-				Command:       nil,
-				CommandString: "this is the command",
-				Stderr:        "exit status 1",
-				Error:         errors.Errorf("command error"),
-			}
-			remoteOutput = &cluster.RemoteOutput{
-				Scope:          0,
-				NumErrors:      1,
-				Commands:       []cluster.ShellCommand{failedCmd},
-				FailedCommands: []*cluster.ShellCommand{&failedCmd},
-			}
+			os.MkdirAll(testDir, 0777)
 		})
-		DescribeTable("CheckClusterError", func(scope cluster.Scope, includeCoordinator bool, perSegment bool, remote bool) {
-			remoteOutput.Scope = scope
-			remoteOutput.Commands[0].Scope = scope
-			remoteOutput.FailedCommands[0].Scope = scope
-			errStr := "1 segment"
-			debugStr := "segment 1 on host remotehost1"
-			var generatorFunc interface{}
-			generatorFunc = func(contentID int) string { return "Error received" }
-			if !perSegment {
-				errStr = "1 host"
-				debugStr = "host remotehost1"
+		AfterEach(func() {
+			os.RemoveAll(testDir)
+		})
+		It("retries a command until it passes", func() {
+			scriptFile, _ := os.OpenFile(path.Join(testDir, "incr.bash"), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0777)
+			// This script increments a number in a file and returns an error until it reaches 3 and returns success
+			scriptFmt := `#!/bin/bash
+n=$(cat %s/num.txt)
+m=$((n+1))
+if [ "$m" -lt "3" ]; then
+	echo $m > %s/num.txt
+	exit 1
+fi`
+			scriptFile.WriteString(fmt.Sprintf(scriptFmt, testDir, testDir))
+			scriptFile.Close()
+			os.WriteFile(path.Join(testDir, "num.txt"), []byte{'0'}, 0777)
+			testCluster := cluster.Cluster{}
+			commandList := []cluster.ShellCommand{
+				cluster.NewShellCommand(cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, -1, "", []string{"touch", path.Join(testDir, "foo")}),
+				cluster.NewShellCommand(cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, 0, "", []string{"bash", "-c", path.Join(testDir, "incr.bash")}),
+			}
+			testCluster.Executor = &cluster.GPDBExecutor{}
+			clusterOutput := testCluster.ExecuteClusterCommandWithRetries(cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, commandList, 5, 5*time.Millisecond)
+			expectPathToExist(path.Join(testDir, "foo"))
+			Expect(clusterOutput.NumErrors).To(Equal(0))
+			Expect(clusterOutput.FailedCommands).To(HaveLen(0))
+			Expect(clusterOutput.RetriedCommands).To(HaveLen(1))
+			Expect(clusterOutput.RetriedCommands[0].RetryError.Error()).To(Equal("attempt 1: error was exit status 1: \nattempt 2: error was exit status 1: "))
+		})
+		It("retries a command until it reaches max retries", func() {
+			testCluster := cluster.Cluster{}
+			commandList := []cluster.ShellCommand{
+				cluster.NewShellCommand(cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, -1, "", []string{"touch", path.Join(testDir, "foo")}),
+				cluster.NewShellCommand(cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, 0, "", []string{"some-non-existent-command"}),
+			}
+			testCluster.Executor = &cluster.GPDBExecutor{}
+			clusterOutput := testCluster.ExecuteClusterCommandWithRetries(cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, commandList, 3, 5*time.Millisecond)
+			expectedErrMsg := "exec: \"some-non-existent-command\": executable file not found in $PATH"
+			expectPathToExist(path.Join(testDir, "foo"))
+			Expect(clusterOutput.NumErrors).To(Equal(1))
+			Expect(clusterOutput.FailedCommands).To(HaveLen(1))
+			Expect(clusterOutput.RetriedCommands).To(HaveLen(0))
+			Expect(clusterOutput.FailedCommands[0].Error.Error()).To(Equal(expectedErrMsg))
+			Expect(clusterOutput.FailedCommands[0].RetryError.Error()).To(Equal(fmt.Sprintf("attempt 1: error was %s: \nattempt 2: error was %s: \nattempt 3: error was %s: ", expectedErrMsg, expectedErrMsg, expectedErrMsg)))
+		})
+	})
+	Describe("CheckClusterError", func() {
+		Context("FailedCommands", func() {
+			var (
+				remoteOutput *cluster.RemoteOutput
+				failedCmd    cluster.ShellCommand
+			)
+			BeforeEach(func() {
+				failedCmd = cluster.ShellCommand{
+					Scope:         0, // The appropriate scope will be set in each test
+					Content:       1,
+					Host:          "remotehost1",
+					Command:       nil,
+					CommandString: "this is the command",
+					Stderr:        "exit status 1",
+					Error:         fmt.Errorf("command error"),
+				}
+				remoteOutput = &cluster.RemoteOutput{
+					Scope:          0,
+					NumErrors:      1,
+					Commands:       []cluster.ShellCommand{failedCmd},
+					FailedCommands: []cluster.ShellCommand{failedCmd},
+				}
+			})
+			DescribeTable("CheckClusterError", func(scope cluster.Scope, perSegment bool, remote bool) {
+				remoteOutput.Scope = scope
+				remoteOutput.Commands[0].Scope = scope
+				remoteOutput.FailedCommands[0].Scope = scope
+				errStr := "1 segment"
+				debugStr := "segment 1 on host remotehost1"
+				var generatorFunc interface{}
+				generatorFunc = func(contentID int) string { return "Error received" }
+				if !perSegment {
+					errStr = "1 host"
+					debugStr = "host remotehost1"
+					generatorFunc = func(host string) string { return "Error received" }
+				}
+				if !remote {
+					errStr = "coordinator for " + errStr
+				}
+				defer testhelper.ShouldPanicWithMessage(fmt.Sprintf("Got an error on %s. See gbytes.Buffer for a complete list of errors.", errStr))
+				defer Expect(logfile).To(gbytes.Say(`\[DEBUG\]:-Command was: this is the command`))
+				defer Expect(logfile).To(gbytes.Say(fmt.Sprintf(`\[ERROR\]:-Error received on %s with error command error: exit status 1`, debugStr)))
+				testCluster.CheckClusterError(remoteOutput, "Got an error", generatorFunc)
+			},
+				Entry("prints error messages for a per-segment command, including coordinator", cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, true, true),
+				Entry("prints error messages for a per-segment command, excluding coordinator", cluster.ON_SEGMENTS, true, true),
+				Entry("prints error messages for a per-host command, including the coordinator host", cluster.ON_HOSTS|cluster.INCLUDE_COORDINATOR, false, true),
+				Entry("prints error messages for a per-host command, excluding the coordinator host", cluster.ON_HOSTS, false, true),
+				Entry("prints error messages for commands executed on coordinator to segments, including coordinator", cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR|cluster.ON_LOCAL, true, false),
+				Entry("prints error messages for commands executed on coordinator to segments, excluding coordinator", cluster.ON_SEGMENTS|cluster.ON_LOCAL, true, false),
+				Entry("prints error messages for commands executed on coordinator to hosts, including coordinator", cluster.ON_HOSTS|cluster.INCLUDE_COORDINATOR|cluster.ON_LOCAL, false, false),
+				Entry("prints error messages for commands executed on coordinator to hosts, excluding coordinator", cluster.ON_HOSTS|cluster.ON_LOCAL, false, false),
+			)
+		})
+		Context("RetriedCommands", func() {
+			var (
+				remoteOutput  *cluster.RemoteOutput
+				retriedCmd    cluster.ShellCommand
+				failedCmd     cluster.ShellCommand
+				retryErrStr   string
+				generatorFunc interface{}
+			)
+			BeforeEach(func() {
+				retryErr := joinerrs.Join(errors.New("attempt 1: this is an error"), errors.New("attempt 2: this is an error"))
+				retriedCmd = cluster.ShellCommand{
+					Scope:         0,
+					Content:       1,
+					Host:          "remotehost1",
+					Command:       nil,
+					CommandString: "this is the retry command",
+					Stderr:        "",
+					Error:         nil,
+					RetryError:    retryErr,
+				}
+				failedCmd = cluster.ShellCommand{
+					Scope:         0,
+					Content:       1,
+					Host:          "remotehost1",
+					Command:       nil,
+					CommandString: "this is the failed command",
+					Stderr:        "exit status 1",
+					Error:         fmt.Errorf("command error"),
+				}
+				remoteOutput = &cluster.RemoteOutput{
+					Scope:           0,
+					NumErrors:       0,
+					Commands:        []cluster.ShellCommand{retriedCmd},
+					RetriedCommands: []cluster.ShellCommand{retriedCmd},
+				}
+				retryErrStr = "\nattempt 1: this is an error\nattempt 2: this is an error"
+			})
+			It("prints retry error messages for a per-segment command", func() {
+				generatorFunc = func(contentID int) string { return "Error received" }
+				testCluster.CheckClusterError(remoteOutput, "Got an error", generatorFunc)
+				Expect(logfile).To(gbytes.Say(fmt.Sprintf(`\[DEBUG\]:-Command failed before passing on segment 1 on host remotehost1 with error:%s`, retryErrStr)))
+				Expect(logfile).To(gbytes.Say(`\[DEBUG\]:-Command was: this is the retry command`))
+			})
+			It("prints retry error messages for a per-host command", func() {
 				generatorFunc = func(host string) string { return "Error received" }
-			}
-			if !remote {
-				errStr = "coordinator for " + errStr
-			}
-			defer testhelper.ShouldPanicWithMessage(fmt.Sprintf("Got an error on %s. See gbytes.Buffer for a complete list of errors.", errStr))
-			defer Expect(logfile).To(gbytes.Say(`\[DEBUG\]:-Command was: this is the command`))
-			defer Expect(logfile).To(gbytes.Say(fmt.Sprintf(`\[DEBUG\]:-Error received on %s with error command error: exit status 1`, debugStr)))
-			testCluster.CheckClusterError(remoteOutput, "Got an error", generatorFunc)
-		},
-			Entry("prints error messages for a per-segment command, including coordinator", cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR, true, true, true),
-			Entry("prints error messages for a per-segment command, excluding coordinator", cluster.ON_SEGMENTS, false, true, true),
-			Entry("prints error messages for a per-host command, including the coordinator host", cluster.ON_HOSTS|cluster.INCLUDE_COORDINATOR, true, false, true),
-			Entry("prints error messages for a per-host command, excluding the coordinator host", cluster.ON_HOSTS, false, false, true),
-			Entry("prints error messages for commands executed on coordinator to segments, including coordinator", cluster.ON_SEGMENTS|cluster.INCLUDE_COORDINATOR|cluster.ON_LOCAL, true, true, false),
-			Entry("prints error messages for commands executed on coordinator to segments, excluding coordinator", cluster.ON_SEGMENTS|cluster.ON_LOCAL, false, true, false),
-			Entry("prints error messages for commands executed on coordinator to hosts, including coordinator", cluster.ON_HOSTS|cluster.INCLUDE_COORDINATOR|cluster.ON_LOCAL, true, false, false),
-			Entry("prints error messages for commands executed on coordinator to hosts, excluding coordinator", cluster.ON_HOSTS|cluster.ON_LOCAL, false, false, false),
-		)
+				testCluster.CheckClusterError(remoteOutput, "Got an error", generatorFunc)
+				Expect(logfile).To(gbytes.Say(fmt.Sprintf(`\[DEBUG\]:-Command failed before passing on host remotehost1 with error:%s`, retryErrStr)))
+				Expect(logfile).To(gbytes.Say(`\[DEBUG\]:-Command was: this is the retry command`))
+			})
+			It("prints retry error messages before failed error messages", func() {
+				remoteOutput = &cluster.RemoteOutput{
+					Scope:           0,
+					NumErrors:       1,
+					Commands:        []cluster.ShellCommand{retriedCmd, failedCmd},
+					FailedCommands:  []cluster.ShellCommand{failedCmd},
+					RetriedCommands: []cluster.ShellCommand{retriedCmd},
+				}
+				generatorFunc = func(contentID int) string { return "Error received" }
+				defer testhelper.ShouldPanicWithMessage("Got an error on 1 segment. See gbytes.Buffer for a complete list of errors.")
+				defer Expect(logfile).To(gbytes.Say(`\[DEBUG\]:-Command was: this is the failed command`))
+				defer Expect(logfile).To(gbytes.Say(`\[ERROR\]:-Error received on segment 1 on host remotehost1 with error command error: exit status 1`))
+				testCluster.CheckClusterError(remoteOutput, "Got an error", generatorFunc)
+				Expect(logfile).To(gbytes.Say(fmt.Sprintf(`\[DEBUG\]:-Command failed before passing on segment 1 on host remotehost1 with error:%s`, retryErrStr)))
+				Expect(logfile).To(gbytes.Say(`\[DEBUG\]:-Command was: this is the retry command`))
+			})
+		})
+		Context("No errors", func() {
+			var (
+				successfulCmd = cluster.ShellCommand{
+					Scope:         0,
+					Content:       1,
+					Host:          "remotehost1",
+					Command:       nil,
+					CommandString: "this is the successful command",
+					Stderr:        "",
+					Error:         nil,
+					RetryError:    nil,
+				}
+				remoteOutput = &cluster.RemoteOutput{
+					Scope:           0,
+					NumErrors:       0,
+					Commands:        []cluster.ShellCommand{successfulCmd},
+					FailedCommands:  []cluster.ShellCommand{},
+					RetriedCommands: []cluster.ShellCommand{},
+				}
+				generatorFunc = func(contentID int) string { return "Error received" }
+			)
+			It("prints nothing if there are no retried or failed commands", func() {
+				testCluster.CheckClusterError(remoteOutput, "Got an error", generatorFunc)
+				Expect(logfile).ToNot(gbytes.Say("error"))
+			})
+		})
 	})
 	Describe("LogFatalClusterError", func() {
 		It("logs an error for 1 segment (with coordinator)", func() {
@@ -383,6 +771,74 @@ var _ = Describe("cluster/cluster tests", func() {
 		It("logs an error for more than 1 host (with coordinator)", func() {
 			defer testhelper.ShouldPanicWithMessage("Error occurred on 2 hosts. See gbytes.Buffer for a complete list of errors.")
 			cluster.LogFatalClusterError("Error occurred", cluster.ON_HOSTS|cluster.INCLUDE_COORDINATOR, 2)
+		})
+	})
+	Describe("NewRemoteOutput", func() {
+		var (
+			retryErr   = joinerrs.Join(errors.New("attempt 1: this is an error"), errors.New("attempt 2: this is an error"))
+			retriedCmd = cluster.ShellCommand{
+				Scope:         0,
+				Content:       1,
+				Host:          "remotehost1",
+				Command:       nil,
+				CommandString: "this is the retry command",
+				Stderr:        "",
+				Error:         nil,
+				RetryError:    retryErr,
+			}
+			failedCmd = cluster.ShellCommand{
+				Scope:         0,
+				Content:       1,
+				Host:          "remotehost1",
+				Command:       nil,
+				CommandString: "this is the failed command",
+				Stderr:        "exit status 1",
+				Error:         fmt.Errorf("command error"),
+				RetryError:    retryErr,
+			}
+			successfulCmd = cluster.ShellCommand{
+				Scope:         0,
+				Content:       1,
+				Host:          "remotehost1",
+				Command:       nil,
+				CommandString: "this is the successful command",
+				Stderr:        "",
+				Error:         nil,
+				RetryError:    nil,
+			}
+			commands []cluster.ShellCommand
+		)
+		It("can create a remote output with no failed or retried commands", func() {
+			commands = []cluster.ShellCommand{successfulCmd}
+			output := cluster.NewRemoteOutput(0, 0, commands)
+			Expect(output.NumErrors).To(Equal(0))
+			Expect(output.Commands).To(HaveLen(1))
+			Expect(output.FailedCommands).To(HaveLen(0))
+			Expect(output.RetriedCommands).To(HaveLen(0))
+		})
+		It("can create a remote output with failed commands", func() {
+			commands = []cluster.ShellCommand{successfulCmd, failedCmd}
+			output := cluster.NewRemoteOutput(0, 1, commands)
+			Expect(output.NumErrors).To(Equal(1))
+			Expect(output.Commands).To(HaveLen(2))
+			Expect(output.FailedCommands[0]).To(Equal(failedCmd))
+			Expect(output.RetriedCommands).To(HaveLen(0))
+		})
+		It("can create a remote output with retried commands", func() {
+			commands = []cluster.ShellCommand{successfulCmd, retriedCmd}
+			output := cluster.NewRemoteOutput(0, 0, commands)
+			Expect(output.NumErrors).To(Equal(0))
+			Expect(output.Commands).To(HaveLen(2))
+			Expect(output.FailedCommands).To(HaveLen(0))
+			Expect(output.RetriedCommands[0]).To(Equal(retriedCmd))
+		})
+		It("can create a remote output with failed and retry commands", func() {
+			commands = []cluster.ShellCommand{successfulCmd, retriedCmd, failedCmd}
+			output := cluster.NewRemoteOutput(0, 1, commands)
+			Expect(output.NumErrors).To(Equal(1))
+			Expect(output.Commands).To(HaveLen(3))
+			Expect(output.FailedCommands[0]).To(Equal(failedCmd))
+			Expect(output.RetriedCommands[0]).To(Equal(retriedCmd))
 		})
 	})
 	Describe("NewCluster", func() {

@@ -2,6 +2,7 @@
 *.o
 *.a
 *.so
+*.swp
 
 # Folders
 _obj
@@ -22,5 +23,8 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# IntelliJ project metadata
+.idea/
 
 vendor

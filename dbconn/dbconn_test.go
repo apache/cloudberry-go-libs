@@ -360,6 +360,100 @@ var _ = Describe("dbconn/dbconn tests", func() {
 			Expect(testSlice[1].Tablename).To(Equal("table2"))
 		})
 	})
+	Describe("DBConn.SelectContext", func() {
+		It("executes a SELECT outside of a transaction", func() {
+			two_col_rows := sqlmock.NewRows([]string{"schemaname", "tablename"}).
+				AddRow("schema1", "table1").
+				AddRow("schema2", "table2")
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(two_col_rows)
+
+			testSlice := make([]struct {
+				Schemaname string
+				Tablename  string
+			}, 0)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			err := connection.SelectContext(ctx, &testSlice, "SELECT schemaname, tablename FROM two_columns ORDER BY schemaname LIMIT 2")
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(testSlice)).To(Equal(2))
+			Expect(testSlice[0].Schemaname).To(Equal("schema1"))
+			Expect(testSlice[0].Tablename).To(Equal("table1"))
+			Expect(testSlice[1].Schemaname).To(Equal("schema2"))
+			Expect(testSlice[1].Tablename).To(Equal("table2"))
+		})
+		It("errors out when the context is cancelled", func() {
+			two_col_rows := sqlmock.NewRows([]string{"schemaname", "tablename"}).
+				AddRow("schema1", "table1").
+				AddRow("schema2", "table2")
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(two_col_rows)
+
+			testSlice := make([]struct {
+				Schemaname string
+				Tablename  string
+			}, 0)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			err := connection.SelectContext(ctx, &testSlice, "SELECT schemaname, tablename FROM two_columns ORDER BY schemaname LIMIT 2")
+
+			Expect(err).To(HaveOccurred())
+			Expect(err).Should(MatchError(context.Canceled))
+		})
+	})
+	Describe("DBConn.QueryContext", func() {
+		It("executes a QUERY and returns the correct rows", func() {
+			two_col_rows := sqlmock.NewRows([]string{"schemaname", "tablename"}).
+				AddRow("schema1", "table1").
+				AddRow("schema2", "table2")
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(two_col_rows)
+
+			type testSlice struct {
+				Schemaname string
+				Tablename  string
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			rows, err := connection.QueryContext(ctx, "SELECT schemaname, tablename FROM two_columns ORDER BY schemaname LIMIT 2")
+			defer rows.Close()
+
+			columns, _ := rows.Columns()
+
+			var result []testSlice
+			for rows.Next() {
+				var row testSlice
+				rows.StructScan(&row)
+				result = append(result, row)
+			}
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(result)).To(Equal(2))
+			Expect(columns).To(Equal([]string{"schemaname", "tablename"}))
+			Expect(result[0].Schemaname).To(Equal("schema1"))
+			Expect(result[0].Tablename).To(Equal("table1"))
+			Expect(result[1].Schemaname).To(Equal("schema2"))
+			Expect(result[1].Tablename).To(Equal("table2"))
+		})
+		It("errors out when the context is cancelled", func() {
+			two_col_rows := sqlmock.NewRows([]string{"schemaname", "tablename"}).
+				AddRow("schema1", "table1").
+				AddRow("schema2", "table2")
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(two_col_rows)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			_, err := connection.QueryContext(ctx, "SELECT schemaname, tablename FROM two_columns ORDER BY schemaname LIMIT 2")
+
+			Expect(err).To(HaveOccurred())
+			Expect(err).Should(MatchError(context.Canceled))
+		})
+	})
 	Describe("DBConn.MustBegin", func() {
 		It("successfully executes a BEGIN outside a transaction", func() {
 			ExpectBegin(mock)
@@ -478,6 +572,73 @@ var _ = Describe("dbconn/dbconn tests", func() {
 			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
 			defer testhelper.ShouldPanicWithMessage("Too many columns returned from query: got 2 columns, expected 1 column")
 			dbconn.MustSelectString(connection, "SELECT foo FROM bar")
+		})
+	})
+	Describe("MustSelectInt", func() {
+		header := []string{"foo"}
+		rowOne := []driver.Value{"1"}
+		rowTwo := []driver.Value{"2"}
+		headerExtraCol := []string{"foo", "bar"}
+		rowExtraCol := []driver.Value{"1", "2"}
+
+		It("returns a single int if the query selects a single int", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(rowOne...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			result := dbconn.MustSelectInt(connection, "SELECT foo FROM bar")
+			Expect(result).To(Equal(1))
+		})
+		It("returns 0 if the query selects no ints", func() {
+			fakeResult := sqlmock.NewRows(header)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			result := dbconn.MustSelectInt(connection, "SELECT foo FROM bar")
+			Expect(result).To(Equal(0))
+		})
+		It("panics if the query selects multiple rows", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(rowOne...).AddRow(rowTwo...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			defer testhelper.ShouldPanicWithMessage("Too many rows returned from query: got 2 rows, expected 1 row")
+			dbconn.MustSelectInt(connection, "SELECT foo FROM bar")
+		})
+		It("panics if the query selects multiple columns", func() {
+			fakeResult := sqlmock.NewRows(headerExtraCol).AddRow(rowExtraCol...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			defer testhelper.ShouldPanicWithMessage("Too many columns returned from query: got 2 columns, expected 1 column")
+			dbconn.MustSelectInt(connection, "SELECT foo FROM bar")
+		})
+	})
+	Describe("MustSelectIntSlice", func() {
+		header := []string{"foo"}
+		rowOne := []driver.Value{"1"}
+		rowTwo := []driver.Value{"2"}
+		headerExtraCol := []string{"foo", "bar"}
+		rowExtraCol := []driver.Value{"1", "2"}
+
+		It("returns a slice containing a single int if the query selects a single int", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(rowOne...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			results := dbconn.MustSelectIntSlice(connection, "SELECT foo FROM bar")
+			Expect(len(results)).To(Equal(1))
+			Expect(results[0]).To(Equal(1))
+		})
+		It("returns an empty slice if the query selects no ints", func() {
+			fakeResult := sqlmock.NewRows(header)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			results := dbconn.MustSelectIntSlice(connection, "SELECT foo FROM bar")
+			Expect(len(results)).To(Equal(0))
+		})
+		It("returns a slice containing multiple ints if the query selects multiple rows", func() {
+			fakeResult := sqlmock.NewRows(header).AddRow(rowOne...).AddRow(rowTwo...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			results := dbconn.MustSelectIntSlice(connection, "SELECT foo FROM bar")
+			Expect(len(results)).To(Equal(2))
+			Expect(results[0]).To(Equal(1))
+			Expect(results[1]).To(Equal(2))
+		})
+		It("panics if the query selects multiple columns", func() {
+			fakeResult := sqlmock.NewRows(headerExtraCol).AddRow(rowExtraCol...)
+			mock.ExpectQuery("SELECT (.*)").WillReturnRows(fakeResult)
+			defer testhelper.ShouldPanicWithMessage("Too many columns returned from query: got 2 columns, expected 1 column")
+			dbconn.MustSelectInt(connection, "SELECT foo FROM bar")
 		})
 	})
 })
