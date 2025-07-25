@@ -71,7 +71,7 @@ func InitializeVersion(dbconn *DBConn) (dbversion GPDBVersion, err error) {
 	// Determine database type and parse version
 	dbversion.ParseVersionInfo(dbversion.VersionString)
 
-	gplog.Info("Initialized database version - Full Version: %s, Database Type: %s, Semantic Version: %s",
+	gplog.Debug("Initialized database version - Full Version: %s, Database Type: %s, Semantic Version: %s",
 		dbversion.VersionString, dbversion.Type, dbversion.SemVer)
 	return
 }
