@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cloudberrydb/gp-common-go-libs/operating"
+	"github.com/apache/cloudberry-go-libs/operating"
 	"github.com/pkg/errors"
 )
 

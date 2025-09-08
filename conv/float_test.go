@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	. "github.com/cloudberrydb/gp-common-go-libs/conv"
+	. "github.com/apache/cloudberry-go-libs/conv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )

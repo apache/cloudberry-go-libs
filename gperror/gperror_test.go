@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/cloudberrydb/gp-common-go-libs/gperror"
+	"github.com/apache/cloudberry-go-libs/gperror"
 )
 
 func TestGpError(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/cloudberrydb/gp-common-go-libs
+module github.com/apache/cloudberry-go-libs
 
 go 1.21
 
