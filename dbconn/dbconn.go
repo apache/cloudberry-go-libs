@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudberrydb/gp-common-go-libs/gplog"
-	"github.com/cloudberrydb/gp-common-go-libs/operating"
+	"github.com/apache/cloudberry-go-libs/gplog"
+	"github.com/apache/cloudberry-go-libs/operating"
 
 	/*
 	 * We previously used github.com/lib/pq as our Postgres driver,

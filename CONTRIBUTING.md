@@ -25,13 +25,13 @@ Some behaviors that contribute to creating a positive environment include:
 2. Clone down the repo to your local system.
 
 ``` 
-git clone https://github.com/your-user-name/gp-common-go-libs.git
+git clone https://github.com/your-user-name/cloudberry-go-libs.git
 ```
 
 3. Add the upstream repo. (You only have to do this once, not every time.)
 
 ``` 
-git remote add upstream https://github.com/cloudberrydb/gp-common-go-libs.git
+git remote add upstream https://github.com/apache/cloudberry-go-libs.git
 ```
 
 4. Create a new branch to hold your work.
@@ -75,3 +75,5 @@ git checkout main
 git fetch upstream 
 git rebase upstream/main
 ```
+
+``` 

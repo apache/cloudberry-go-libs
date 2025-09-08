@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/apache/cloudberry-go-libs/gplog"
 	"github.com/blang/semver"
-	"github.com/cloudberrydb/gp-common-go-libs/gplog"
 )
 
 // DBType represents the type of database

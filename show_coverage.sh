@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR="github.com/cloudberrydb/gp-common-go-libs"
+DIR="github.com/apache/cloudberry-go-libs"
 RESULTS="/tmp/results.out"
 echo "mode: set" > /tmp/coverage.out # Need this line at the start of the file for the total coverage at the end
 for PACKAGE in "cluster" "conv" "dbconn" "gperror" "gplog" "iohelper" "structmatcher"; do
