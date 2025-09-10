@@ -1,29 +1,86 @@
+# --------------------------------------------------------------------
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See the NOTICE file distributed
+# with this work for additional information regarding copyright
+# ownership. The ASF licenses this file to You under the Apache
+# License, Version 2.0 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of the
+# License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# --------------------------------------------------------------------
+# golangci-lint configuration file
+# See https://golangci-lint.run/docs/product/migration-guide for migration instructions
+
+run:
+  timeout: 5m
+  go: "1.21"
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  revive:
+    min-confidence: 0
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
   enable:
-    - golint
-    - vet
-    - varcheck
-    - unparam
+    - govet
     - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - revive
+    - gocyclo
+    - gofmt
+    - goimports
+    - misspell
+    - lll
+    - unparam
+    - nakedret
+    - prealloc
+    - gocritic
+  disable:
+    - golint     # deprecated, replaced by revive
+    - structcheck # deprecated since v1.49.0
+    - varcheck   # deprecated since v1.49.0
+    - deadcode   # deprecated since v1.49.0
+    - scopelint  # deprecated since v1.39.0
 
 issues:
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-  exclude:
-    - "don't use ALL_CAPS in Go names; use CamelCase"
-    - "should not use dot imports"
-
+  exclude-use-default: false
   exclude-rules:
-    - path: _test\.go
-      text: "don't use underscores in Go names"
-      linters:
-        - golint
-
+    # Exclude some linters from running on tests files.
     - path: _test\.go
       linters:
+        - gocyclo
         - errcheck
+        - dupl
+        - gosec
+    # Exclude known linters from partially hard-to-fix issues
+    - linters:
+        - lll
+      source: "^//go:generate "
+  max-issues-per-linter: 0
+  max-same-issues: 0

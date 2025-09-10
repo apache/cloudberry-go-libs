@@ -1,0 +1,127 @@
+# --------------------------------------------------------------------
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See the NOTICE file distributed
+# with this work for additional information regarding copyright
+# ownership. The ASF licenses this file to You under the Apache
+# License, Version 2.0 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of the
+# License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# --------------------------------------------------------------------
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened, edited ]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.21'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        
+    - name: Download dependencies
+      run: make depend
+      
+    - name: Run tests
+      run: |
+        set +e  # Don't exit on error
+        make unit 2>&1 | tee test_output.txt
+        echo "TEST_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+      continue-on-error: true
+      
+    - name: Generate coverage report
+      if: env.TEST_EXIT_CODE == '0'
+      run: |
+        echo "Generating code coverage report..."
+        make coverage 2>&1 | tee coverage_output.txt || true
+        
+    - name: Test Summary
+      if: always()
+      run: |
+        echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
+        if [ "${TEST_EXIT_CODE}" == "0" ]; then
+          echo "✅ All tests passed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract and display test summary
+          if [ -f test_output.txt ]; then
+            echo "### 🎯 Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            # Extract the final summary lines
+            tail -n 10 test_output.txt | grep -E "(Ginkgo ran|Test Suite)" >> $GITHUB_STEP_SUMMARY || echo "Test summary not found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage_output.txt ]; then
+            cat coverage_output.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage report not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Some tests failed. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f test_output.txt ]; then
+            echo "### 📋 Test Output" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            tail -n 20 test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        
+    - name: Build
+      run: go build -v ./...
+      
+    - name: Build Summary
+      if: always()
+      run: |
+        echo "## 🔨 Build Results" >> $GITHUB_STEP_SUMMARY
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build failed. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+        fi

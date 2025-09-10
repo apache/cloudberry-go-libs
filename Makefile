@@ -22,13 +22,13 @@ goimports:
 	docker run --rm -i -v "${PWD}":/data -w /data unibeautify/goimports -w -l /data
 
 golangci-lint:
-	docker run --rm -v ${PWD}:/data -w /data golangci/golangci-lint golangci-lint run -v
+	docker run --rm -v ${PWD}:/data -w /data golangci/golangci-lint:v1.64.8 golangci-lint run -v
 
 gofmt:
 	docker run --rm -v ${PWD}:/data cytopia/gofmt --ci .
 
 $(GINKGO):
-	go install github.com/onsi/ginkgo/v2/ginkgo@latest
+	go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.0
 
 unit: $(GINKGO)
 		ginkgo -r --keep-going --randomize-suites --randomize-all \
@@ -56,18 +56,4 @@ clean :
 		rm -rf /tmp/cover*
 		rm -rf /tmp/unit*
 
-##### Pipeline targets #####
 
-set-dev:
-	fly --target dev set-pipeline --check-creds \
-	--pipeline=dev-gp-common-go-libs-${BRANCH}-${USER} \
-	-c ci/pipeline.yml \
-	--var=branch=${BRANCH} \
-	--var=golang-version=${GOLANG_VERSION}
-
-set-prod:
-	fly --target prod set-pipeline --check-creds \
-	--pipeline=gp-common-go-libs \
-	-c ci/pipeline.yml \
-	--var=branch=main\
-	--var=golang-version=${GOLANG_VERSION}
