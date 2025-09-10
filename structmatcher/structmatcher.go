@@ -57,8 +57,8 @@ func structMatcher(expected, actual reflect.Value, fieldPath string, shouldFilte
 			expectedFieldIsNonemptySlice := expectedField.Kind() == reflect.Slice && !expectedField.IsNil() && expectedField.Len() > 0
 			fieldIsStructSlice := actualFieldIsNonemptySlice && expectedFieldIsNonemptySlice && actualField.Len() == expectedField.Len() && actualField.Index(0).Kind() == reflect.Struct
 
-			expectedFieldIsNilPtr := expectedStruct.Field(i).Kind() == reflect.Ptr && expectedStruct.Field(i).IsNil()
-			actualFieldIsNilPtr := actualStruct.Field(i).Kind() == reflect.Ptr && actualStruct.Field(i).IsNil()
+			expectedFieldIsNilPtr := expectedStruct.Field(i).Kind() == reflect.Pointer && expectedStruct.Field(i).IsNil()
+			actualFieldIsNilPtr := actualStruct.Field(i).Kind() == reflect.Pointer && actualStruct.Field(i).IsNil()
 
 			if fieldIsStructSlice {
 				for j := 0; j < actualField.Len(); j++ {

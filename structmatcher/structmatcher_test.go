@@ -211,12 +211,12 @@ var _ = Describe("structmatcher.StructMatcher", func() {
 		//   uses reflect.Value.
 		type OpaqueStruct struct {
 			privateField       string
-			privateStructField SimpleStruct
+			privateStructField SimpleStruct //nolint:unused // intentionally unused to test unexported field handling
 		}
 		type SemiOpaqueStruct struct {
 			PublicField        SimpleStruct
 			privateField       string
-			privateStructField SimpleStruct
+			privateStructField SimpleStruct //nolint:unused // intentionally unused to test unexported field handling
 			PublicField2       SimpleStruct
 		}
 		type NestedOpaqueStruct struct {

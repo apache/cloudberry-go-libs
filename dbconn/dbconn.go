@@ -224,7 +224,7 @@ func (dbconn *DBConn) Connect(numConns int, utilityMode ...bool) error {
 		sessionRoleConnStr := connStr + " gp_session_role=utility"
 		utilConn, err := dbconn.Driver.Connect("pgx", sessionRoleConnStr)
 		if utilConn != nil {
-			utilConn.Close()
+			_ = utilConn.Close()
 		}
 		if err != nil {
 			if strings.Contains(err.Error(), `unrecognized configuration parameter "gp_session_role"`) {

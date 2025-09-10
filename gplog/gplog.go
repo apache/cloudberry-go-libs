@@ -435,7 +435,7 @@ func FatalOnError(err error, output ...string) {
 		if len(output) == 0 {
 			Fatal(err, "")
 		} else {
-			Fatal(err, output[0])
+			Fatal(err, "%s", output[0])
 		}
 	}
 }
