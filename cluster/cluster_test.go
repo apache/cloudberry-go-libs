@@ -500,7 +500,8 @@ var _ = Describe("cluster/cluster tests", func() {
 		It("kills the command if it runs beyond the timeout", func() {
 			testCluster := cluster.Cluster{}
 			commandStr := "while true; do echo Keep running; sleep 0.1; done"
-			ctx, _ := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
 			testCluster.Executor = &cluster.GPDBExecutor{}
 			output, err := testCluster.ExecuteLocalCommandWithContext(commandStr, ctx)
 			Expect(ctx.Err()).To(Equal(context.DeadlineExceeded))

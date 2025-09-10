@@ -130,7 +130,7 @@ const (
 	INCLUDE_MIRRORS     Scope = 1 << 3
 )
 
-func scopeIsSegments(scope Scope) bool {
+func scopeIsSegments(scope Scope) bool { //nolint:unused // kept for API symmetry with scopeIsHosts
 	return scope&ON_HOSTS == ON_SEGMENTS
 }
 
@@ -142,11 +142,11 @@ func scopeExcludesCoordinator(scope Scope) bool {
 	return scope&INCLUDE_COORDINATOR == EXCLUDE_COORDINATOR
 }
 
-func scopeIncludesCoordinator(scope Scope) bool {
+func scopeIncludesCoordinator(scope Scope) bool { //nolint:unused // kept for API symmetry with scopeExcludesCoordinator
 	return scope&INCLUDE_COORDINATOR == INCLUDE_COORDINATOR
 }
 
-func scopeIsRemote(scope Scope) bool {
+func scopeIsRemote(scope Scope) bool { //nolint:unused // kept for API symmetry with scopeIsLocal
 	return scope&ON_LOCAL == ON_REMOTE
 }
 
@@ -158,7 +158,7 @@ func scopeExcludesMirrors(scope Scope) bool {
 	return scope&INCLUDE_MIRRORS == EXCLUDE_MIRRORS
 }
 
-func scopeIncludesMirrors(scope Scope) bool {
+func scopeIncludesMirrors(scope Scope) bool { //nolint:unused // kept for API symmetry with scopeExcludesMirrors
 	return scope&INCLUDE_MIRRORS == INCLUDE_MIRRORS
 }
 
@@ -418,7 +418,7 @@ func (executor *GPDBExecutor) ExecuteClusterCommandWithRetries(scope Scope, comm
  *    - e.g. running multiple scps on coordinator to push a file to all segments
  */
 func (cluster *Cluster) GenerateAndExecuteCommand(verboseMsg string, scope Scope, generator interface{}) *RemoteOutput {
-	gplog.Verbose(verboseMsg)
+	gplog.Verbose("%s", verboseMsg)
 	commandList := cluster.GenerateSSHCommandList(scope, generator)
 	return cluster.ExecuteClusterCommandWithRetries(scope, commandList, 5, 1*time.Second)
 }
@@ -455,7 +455,7 @@ func (cluster *Cluster) CheckClusterError(remoteOutput *RemoteOutput, finalErrMs
 	}
 
 	if len(noFatal) == 1 && noFatal[0] == true {
-		gplog.Error(finalErrMsg)
+		gplog.Error("%s", finalErrMsg)
 	} else {
 		LogFatalClusterError(finalErrMsg, remoteOutput.Scope, remoteOutput.NumErrors)
 	}
@@ -700,7 +700,9 @@ func GetSegmentConfigurationFromFile(coordinatorDataDir string) ([]SegConfig, er
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open file %s. Error: %s", gpsegconfigDump, err.Error())
 	}
-	defer fd.Close()
+	defer func() {
+		_ = fd.Close()
+	}()
 
 	results := make([]SegConfig, 0)
 	scanner := bufio.NewScanner(fd)
