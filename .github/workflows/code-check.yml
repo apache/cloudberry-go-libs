@@ -1,15 +1,77 @@
----
+# --------------------------------------------------------------------
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See the NOTICE file distributed
+# with this work for additional information regarding copyright
+# ownership. The ASF licenses this file to You under the Apache
+# License, Version 2.0 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of the
+# License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# --------------------------------------------------------------------
 name: code-style-check
 
 on:
   pull_request:
-    branches: [master]
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: run check
       run: |
-        make lint
+        set +e  # Don't exit on error
+        make lint 2>&1 | tee lint_output.txt
+        echo "LINT_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+      continue-on-error: true
+        
+    - name: Code Check Summary
+      if: always()
+      run: |
+        echo "## 📋 Code Quality Check Results" >> $GITHUB_STEP_SUMMARY
+        if [ "${LINT_EXIT_CODE}" == "0" ]; then
+          echo "✅ All code quality checks passed!" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Code formatting (gofmt)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Import organization (goimports)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Static analysis (golangci-lint)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f lint_output.txt ]; then
+            echo "### 🔍 Lint Details" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            # Show successful completion messages
+            grep -E "(SUCCESS|PASS|✓|completed)" lint_output.txt | tail -n 10 >> $GITHUB_STEP_SUMMARY || echo "All checks completed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "❌ Code quality checks failed. Please fix the issues above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run \`make lint\` locally to check and fix issues." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f lint_output.txt ]; then
+            echo "### 🚨 Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            # Show the last part of output which usually contains the errors
+            tail -n 30 lint_output.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+    - name: Fail workflow if lint failed
+      if: env.LINT_EXIT_CODE != '0'
+      run: |
+        echo "Code quality checks failed. Please fix the issues and try again."
+        exit 1
