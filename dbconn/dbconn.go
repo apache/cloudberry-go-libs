@@ -20,7 +20,7 @@ import (
 	 * but it had a bug with the way it handled certain encodings.
 	 * pgx seems to handle these encodings properly.
 	 */
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -205,14 +205,11 @@ func (dbconn *DBConn) Connect(numConns int, utilityMode ...bool) error {
 	if sslmode == "" {
 		sslmode = "prefer"
 	}
-	// This string takes in the literal user/database names. They do not need
-	// to be escaped or quoted.
-	// By default pgx/v4 turns on automatic prepared statement caching. This
-	// causes an issue in GPDB4 where creating an object, deleting it, creating
-	// the same object again, then querying for the object in the same
-	// connection will generate a cache lookup failure. To disable pgx's
-	// automatic prepared statement cache we set statement_cache_capacity to 0.
-	connStr := fmt.Sprintf(`user='%s' dbname='%s' krbsrvname='%s' host=%s port=%d sslmode='%s' statement_cache_capacity=0`,
+	// User/database names are passed literally, no escaping or quoting needed.
+	// default_query_exec_mode=exec disables pgx's automatic prepared statement
+	// caching, which on GPDB4 caused cache lookup failures when an object was
+	// dropped and recreated within a single connection.
+	connStr := fmt.Sprintf(`user='%s' dbname='%s' krbsrvname='%s' host=%s port=%d sslmode='%s' default_query_exec_mode=exec`,
 		user, dbname, krbsrvname, dbconn.Host, dbconn.Port, sslmode)
 
 	dbconn.ConnPool = make([]*sqlx.DB, numConns)
