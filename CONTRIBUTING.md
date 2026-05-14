@@ -17,100 +17,81 @@
   under the License.
 -->
 
-Apache Cloudberry (Incubating) welcomes contributions from anyone, new
-and experienced! We appreciate your interest in contributing. This
-guide will help you get started with the contribution.
+Apache Cloudberry community welcomes contributions from anyone, new and
+experienced! We appreciate your interest in contributing. This guide will help
+you get started with the contribution.
 
 ## Code of Conduct
 
-Everyone who participates in Cloudberry, either as a user or a
-contributor, is obliged to follow the [Code of
-Conduct](./CODE_OF_CONDUCT.md).
+Everyone who participates in Apache Cloudberry, either as a user or a
+contributor, is obliged to follow our community [Code of
+Conduct](./CODE_OF_CONDUCT.md). Every violation against it will be reviewed
+and investigated and will result in a response that is deemed necessary and
+appropriate to the circumstances. The moderator team is obligated to maintain
+confidentiality regarding the reporter of an incident.
 
-We strive to:
+Some behaviors that contribute to creating a positive environment include:
 
-* Be open.
-* Be empathetic, welcoming, friendly, and patient.
-* Be collaborative.
-* Be inquisitive.
-* Be careful in the words that we choose.
-* Be concise.
-* Step down considerately.
+* Use welcoming and inclusive language.
+* Respect differing viewpoints and experiences.
+* Accept constructive criticism gracefully.
+* Foster what's best for the community.
+* Show empathy for community members.
 
-## Find a Way to Contribute
+## GitHub Contribution Workflow
 
-There are many ways to contribute to Cloudberry. Here are some ways
-you need to get started. The most common contributions include code,
-documentation, and community support.
+1. Fork this repo to your own GitHub account.
+2. Clone down the repo to your local system.
 
-You can participate by:
+```
+git clone https://github.com/your-user-name/cloudberry-go-libs.git
+```
 
-* [Contributing code](https://cloudberry.apache.org/contribute/code).
-* [Improving
-  documentation](https://cloudberry.apache.org/contribute/doc).
-* Helping out in the Slack channels, see [Slack
-  Guide](https://cloudberry.apache.org/community/slack)
-* Answering questions on [GitHub
-  Discussions](https://github.com/apache/cloudberry-go-libs/discussions/categories/q-a).
-* Investigating [GitHub
-  issues](https://github.com/apache/cloudberry-go-libs/issues).
-* [Reporting a new
-  bug](https://github.com/apache/cloudberry-go-libs/issues/new/choose).
-* [Sharing ideas for new
-  features](https://github.com/apache/cloudberry-go-libs/discussions/new?category=ideas-feature-requests).
-* Helping review [Pull
-  Requests](https://github.com/apache/cloudberry-go-libs/pulls) or
-  [Proposals](https://github.com/apache/cloudberry-go-libs/discussions/categories/proposal).
-* Proposing your proposal, see [Proposal
-  Guide](https://cloudberry.apache.org/contribute/proposal).
-* [Reporting security issues](./SECURITY.md).
-* Testing code, testing releases.
-* Creating educational content (Blog posts, tutorials, videos, etc.)
-* Spreading the word about Apache Cloudberry on social media(eg,
-  Twitter, LinkedIn).
-* ...
-* More things to make Cloudberry better.
+3. Add the upstream repo. (You only have to do this once, not every time.)
 
-## Getting Help
+```
+git remote add upstream https://github.com/apache/cloudberry-go-libs.git
+```
 
-Feel free to reach out to us in [Slack `#dev`
-channels](https://cloudberry.apache.org/community/slack) or [GitHub
-Discussions](https://github.com/apache/cloudberry-go-libs/discussions) when
-your contribution is blocked, especially when making your first
-contribution. Don't be shy, we're happy to help.
+4. Create a new branch to hold your work.
 
-Cloudberry cannot grow without the support from the community. Hope to
-make our mission with you!
+```
+git checkout -b new-branch-name
+```
 
-## Benefits of Contribution
+5. Work on your new code.
 
-There are many reasons to contribute to Cloudberry and open source
-projects in general. Here are some of the benefits of participating:
+6. Commit your changes.
 
-* Growing your network. Working with Cloudberry in open source can
-help connect you with people working on similar things. You can get
-help or give help, and you might even make a real-life acquaintance!
+```
+git add <the change files>
+git commit
+```
 
-* Improving your skills. When you work on a Cloudberry issue or Pull
-Request, inevitably you'll learn more about how something works in our
-project; either by asking questions and gathering info or by digging
-deeper into the code yourself. There's a skill-building benefit to
-contributing to open source projects.
+7. Push your changes to your GitHub repo.
 
-* Becoming an expert. You might start new to a project like Cloudberry
-or PostgreSQL, and by building things and opening issues when you
-encounter a new challenge or a bug, you'll learn a ton over time. You
-could find your knowledge of said project has grown so much that
-you've become an expert.
+```
+git push origin new-branch-name
+```
 
-* Speaking at conferences or more community events. With those skills
-you've earned yourself working in open source, you can let other
-people hear from you, and build your professional reputation through
-these community activities.
+8. Open a PR(Pull Request).
 
-* Getting free swag! By participating in GitHub and other community
-channels, you can become eligible for free swag that the Cloudberry
-team offers as a way to say thank you.
+Go to the repo on GitHub. There will be a message about your recently pushed
+branch, asking if you would like to open a pull request. Follow the prompts,
+compare across repositories, and submit the PR.
 
-There are undoubtedly more benefits than those listed here. Hope you
-enjoy your contribution to the Cloudberry community!
+9. Get your code reviewed.
+10. Congratulations! Once your PR is approved, and passes the CI/CD without
+errors, then the code will be merged. Your code will be shipped in the recent
+future releases.
+
+## Sync your branch with the upstream
+
+Before working on your next contribution, make sure your local repository is
+up to date:
+
+```
+git checkout main
+git fetch upstream
+git rebase upstream/main
+```

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+Usage:
+This pom.xml file defines the Apache RAT license matching rules used to
+validate the source tree for Apache Cloudberry Go-libs (Incubating).
+
+Do not modify matcher categories without reviewing their use across the
+source tree. Add new license matchers as needed when introducing third-party
+code or new licensing patterns.
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.cloudberry</groupId>
+  <artifactId>apache-cloudberry-go-libs-incubating</artifactId>
+  <version>2.1.0-incubating</version>
+  <packaging>pom</packaging>
+
+  <name>Apache Cloudberry Go-libs (Incubating)</name>
+  <description>Go Libraries for Apache Cloudberry (Incubating)</description>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.rat</groupId>
+        <artifactId>apache-rat-plugin</artifactId>
+        <version>0.16.1</version>
+        <configuration>
+          <consoleOutput>true</consoleOutput>
+          <excludes>
+            <!--
+                The following files are part of the original Greenplum
+                Database Common Go Libraries open-source files, licensed
+                under the Apache License 2.0 by Greenplum/Pivotal/VMware.
+
+                Original files located:
+                  https://github.com/greenplum-db/gp-common-go-libs
+
+                These files do not contain license headers or recognizable
+                license markers, but are Apache-licensed by virtue of their
+                inclusion in the upstream Greenplum project. We exclude them
+                from Apache RAT scans to avoid false positives, while
+                retaining them in the source distribution.
+            -->
+
+            <!-- cluster package -->
+            <exclude>cluster/cluster.go</exclude>
+            <exclude>cluster/cluster_test.go</exclude>
+
+            <!-- conv package -->
+            <exclude>conv/const.go</exclude>
+            <exclude>conv/conv_suite_test.go</exclude>
+            <exclude>conv/float.go</exclude>
+            <exclude>conv/float_test.go</exclude>
+            <exclude>conv/int.go</exclude>
+            <exclude>conv/int_test.go</exclude>
+            <exclude>conv/md5.go</exclude>
+            <exclude>conv/md5_test.go</exclude>
+            <exclude>conv/README.md</exclude>
+            <exclude>conv/uint.go</exclude>
+            <exclude>conv/uint_test.go</exclude>
+
+            <!-- dbconn package -->
+            <exclude>dbconn/dbconn.go</exclude>
+            <exclude>dbconn/dbconn_test.go</exclude>
+            <exclude>dbconn/version.go</exclude>
+            <exclude>dbconn/version_test.go</exclude>
+
+            <!-- gperror package -->
+            <exclude>gperror/gperror.go</exclude>
+            <exclude>gperror/gperror_test.go</exclude>
+
+            <!-- gplog package -->
+            <exclude>gplog/gplog.go</exclude>
+            <exclude>gplog/gplog_test.go</exclude>
+
+            <!-- iohelper package -->
+            <exclude>iohelper/iohelper.go</exclude>
+            <exclude>iohelper/iohelper_test.go</exclude>
+
+            <!-- operating package -->
+            <exclude>operating/operating.go</exclude>
+
+            <!-- structmatcher package -->
+            <exclude>structmatcher/structmatcher.go</exclude>
+            <exclude>structmatcher/structmatcher_test.go</exclude>
+
+            <!-- testhelper package -->
+            <exclude>testhelper/functions.go</exclude>
+            <exclude>testhelper/structs.go</exclude>
+
+            <!-- Root level files -->
+            <exclude>Makefile</exclude>
+            <exclude>go.mod</exclude>
+            <exclude>go.sum</exclude>
+            <exclude>show_coverage.sh</exclude>
+
+            <!-- End of the legacy Greenplum Go-libs files -->
+
+            <!-- The following files are introduced by Cloudberry,
+                  but need to be excluded from the RAT scan.
+            -->
+            <exclude>.github/pull_request_template.md</exclude>
+
+          </excludes>
+
+          <licenses>
+
+            <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
+              <licenseFamilyName>Apache License (Greenplum-derived)</licenseFamilyName>
+              <licenseFamilyCategory>GRPM</licenseFamilyCategory>
+              <patterns>
+                <pattern>copyright (c) 2007, 2008, 2009 GreenPlum.  All rights reserved.</pattern>
+              </patterns>
+            </license>
+
+            <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
+              <licenseFamilyName>Apache License (VMware-derived)</licenseFamilyName>
+              <licenseFamilyCategory>VMW</licenseFamilyCategory>
+              <patterns>
+                <pattern>Copyright 2017-Present VMware, Inc. or its affiliates.</pattern>
+                <pattern>Portions Copyright (c) 2023 VMware, Inc. or its affiliates.</pattern>
+              </patterns>
+            </license>
+
+          </licenses>
+
+          <licenseFamilies>
+            <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
+              <familyName>Apache License (Greenplum-derived)</familyName>
+            </licenseFamily>
+            <licenseFamily implementation="org.apache.rat.license.SimpleLicenseFamily">
+              <familyName>Apache License (VMware-derived)</familyName>
+            </licenseFamily>
+          </licenseFamilies>
+
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

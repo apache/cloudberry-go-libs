@@ -17,27 +17,38 @@
   under the License.
 -->
 
-# go-libs for Apache Cloudberry (Incubating)
+# Go Libraries for Apache Cloudberry (Incubating)
 
-[![Slack](https://img.shields.io/badge/Join_Slack-6a32c9)](https://communityinviter.com/apps/cloudberrydb/welcome)
-[![Twitter Follow](https://img.shields.io/twitter/follow/cloudberrydb)](https://twitter.com/cloudberrydb)
-[![Website](https://img.shields.io/badge/Visit%20Website-eebc46)](https://cloudberry.apache.org)
+[![Website](https://img.shields.io/badge/Website-eebc46)](https://cloudberry.apache.org)
+[![Documentation](https://img.shields.io/badge/Documentation-acd94a)](https://cloudberry.apache.org/docs)
+[![Slack](https://img.shields.io/badge/Join_Slack-6a32c9)](https://inviter.co/apache-cloudberry)
+[![Twitter Follow](https://img.shields.io/twitter/follow/ASFCloudberry)](https://twitter.com/ASFCloudberry)
+[![WeChat](https://img.shields.io/badge/WeChat-eebc46)](https://cloudberry.apache.org/community/wechat)
+[![Youtube](https://img.shields.io/badge/Youtube-gebc46)](https://youtube.com/@ApacheCloudberry)
+[![GitHub Discussions](https://img.shields.io/github/discussions/apache/cloudberry)](https://github.com/apache/cloudberry/discussions)
 
 ---
 
-This project is a fork of the `Greenplum gp-common-go-libs`, which is a
-dependency for the [gpbackup](https://github.com/apache/cloudberry-backup)
-utility in Cloudberry.
+## Introduction
 
-Please note that this repository is only maintained for Cloudberry 1.0 and
-its later versions.
+This repository contains the Go libraries used by Apache Cloudberry (Incubating)
+and its ecosystem projects. It provides common utilities and functionality that
+are shared across multiple Cloudberry components.
+
+## Contribution
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to make contributions to this
+repository. We welcome all types of contributions including code enhancements,
+bug fixes, documentation improvements, and more.
 
 ## License
 
-Licensed under Apache License Version 2.0. For more details, please refer to
-the [LICENSE](./LICENSE).
+Cloudberry is licensed under the Apache License, Version 2.0. For details, see
+the [LICENSE](./LICENSE) file.
 
 ## Acknowledgment
 
-Thanks to all the gp-common-go-libs contributors, more details in its [GitHub
+This project is derived from [greenplum/gp-common-go-libs](https://github.com/greenplum-db/gp-common-go-libs) and customized for Apache Cloudberry.
+
+Thanks to all the `gp-common-go-libs` contributors, more details in its [GitHub
 page](https://github.com/greenplum-db/gp-common-go-libs).
