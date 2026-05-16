@@ -1,14 +1,34 @@
+# --------------------------------------------------------------------
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See the NOTICE file distributed
+# with this work for additional information regarding copyright
+# ownership. The ASF licenses this file to You under the Apache
+# License, Version 2.0 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of the
+# License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# --------------------------------------------------------------------
+
 name: "\U0001F41B Bug Report"
-description: Problems and issues with code in gp-common-go-libs for CloudberryDB.
+description: Problems and issues with code in cloudberry-go-libs for Apache Cloudberry.
 title: "[Bug] "
 labels: ["type: Bug"]
 body:
   - type: markdown
     attributes:
-      value: "Thank you for reporting the problem! We really appreciate your efforts to improve Cloudberry Database. Before reporting it, please (ideally) test on the latest release or main to see if the issue is fixed."
+      value: "Thank you for reporting the problem! We really appreciate your efforts to improve Apache Cloudberry. Before reporting it, please (ideally) test on the latest release or main to see if the issue is fixed."
   - type: textarea
     attributes:
-      label: Cloudberry Database version
+      label: Apache Cloudberry version
       description: What version are you using? 
   - type: textarea
     attributes:
@@ -56,7 +76,7 @@ body:
       options:
         - label: >
             I agree to follow this project's
-            [Code of Conduct](https://cloudberrydb.org/community/coc).
+            [Code of Conduct](https://github.com/apache/cloudberry/blob/main/CODE_OF_CONDUCT.md).
           required: true
   - type: markdown
     attributes:

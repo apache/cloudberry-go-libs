@@ -17,11 +17,28 @@
   under the License.
 -->
 
-# Code of Conduct
+# Apache Cloudberry Go-libs (Incubating) License Audit Notes
 
-Apache Cloudberry (Incubating) follows the ASF [Code of
-Conduct](https://www.apache.org/foundation/policies/conduct).
+This file documents licensing clarifications and exceptions as part of ASF
+release readiness for Apache Cloudberry Go-libs (Incubating).
 
-If you observe behavior that violates those rules please follow the
-[ASF reporting
-guidelines](https://www.apache.org/foundation/policies/conduct#reporting-guidelines).
+## Historical Attribution Under Apache License 2.0
+
+The following entities have contributed to the Greenplum Database Common Go
+Libraries source code under the Apache License 2.0:
+
+- Greenplum, Inc.
+- EMC Corporation
+- VMware, Inc.
+- Pivotal Software
+
+RAT matchers are used to classify their license headers accordingly.
+
+## Binary Files in Source
+
+This project does not include any binary files in the source tree. All files
+are source code files with Apache License 2.0 headers.
+
+## Compressed Files in Source
+
+This project does not include any compressed/archived files in the source tree.
