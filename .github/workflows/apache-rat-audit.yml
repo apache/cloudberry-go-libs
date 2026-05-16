@@ -85,7 +85,6 @@ jobs:
 
           # Initialize to pass, will be updated if checks fail
           echo "NOTICE_CHECK=pass" >> $GITHUB_ENV
-          echo "PSQL_HELP_CHECK=pass" >> $GITHUB_ENV
 
           # Check NOTICE file
           echo "Checking NOTICE file..."
