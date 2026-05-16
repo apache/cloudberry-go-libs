@@ -66,10 +66,10 @@ jobs:
       - name: Run Apache Rat check
         run: |
           echo "Running Apache Rat license check..."
-          mvn clean verify -Drat.consoleOutput=true | tee target/rat-output.log
+          mvn clean verify -Drat.consoleOutput=true
           
           # Check for build failure
-          if grep -q "\[INFO\] BUILD FAILURE" target/rat-output.log; then
+          if grep -q "\[INFO\] BUILD FAILURE" target/rat.txt; then
             echo "::error::Apache Rat check failed - build failure detected"
             echo "RAT_CHECK=fail" >> $GITHUB_ENV
           else
@@ -147,7 +147,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rat-check-results
-          path: target/rat-output.log
+          path: target/rat.txt
           retention-days: 7
 
       - name: Generate Job Summary
@@ -188,11 +188,11 @@ jobs:
             echo ""
 
             # Rat check summary
-            if [[ -f target/rat-output.log ]]; then
+            if [[ -f target/rat.txt ]]; then
               # First extract and display summary statistics (only once)
-              if grep -q "Rat check: Summary over all files" target/rat-output.log; then
+              if grep -q "Rat check: Summary over all files" target/rat.txt; then
                 echo "### License Header Check"
-                summary_line=$(grep "Rat check: Summary over all files" target/rat-output.log)
+                summary_line=$(grep "Rat check: Summary over all files" target/rat.txt)
                 echo "\`\`\`"
                 echo "$summary_line"
                 echo "\`\`\`"
@@ -205,11 +205,11 @@ jobs:
                 echo ""
 
                 # Extract and display files with unapproved licenses
-                if grep -q "Files with unapproved licenses:" target/rat-output.log; then
+                if grep -q "Files with unapproved licenses:" target/rat.txt; then
                   echo "##### Files with Unapproved Licenses"
                   echo "\`\`\`"
                   # Get the line with "Files with unapproved licenses:" and all following lines until the dashed line
-                  sed -n '/Files with unapproved licenses:/,/\[INFO\] ------------------------------------------------------------------------/p' target/rat-output.log | \
+                  sed -n '/Files with unapproved licenses:/,/\[INFO\] ------------------------------------------------------------------------/p' target/rat.txt | \
                     grep -v "\[INFO\] ------------------------------------------------------------------------" | \
                     grep -v "^$" | \
                     head -20
