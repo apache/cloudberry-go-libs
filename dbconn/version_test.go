@@ -2,7 +2,7 @@ package dbconn_test
 
 import (
 	"github.com/apache/cloudberry-go-libs/dbconn"
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
