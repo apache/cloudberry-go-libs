@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/apache/cloudberry-go-libs/gplog"
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 )
 
 // DBType represents the type of database
