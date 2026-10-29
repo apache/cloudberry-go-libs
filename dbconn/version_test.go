@@ -34,6 +34,15 @@ var _ = Describe("dbconn/version tests", func() {
 			Expect(dbVersion.IsCBDB()).To(BeTrue())
 			Expect(dbVersion.IsGPDB()).To(BeFalse())
 		})
+		It("parses an Apache Cloudberry Incubating version string", func() {
+			versionStr := "PostgreSQL 14.4 (Apache Cloudberry Incubating 2.1.0) (SynxDB4 4.8.1 build 200) on x86_64-pc-linux-gnu"
+			dbVersion := dbconn.GPDBVersion{}
+			dbVersion.ParseVersionInfo(versionStr)
+			Expect(dbVersion.Type).To(Equal(dbconn.CBDB))
+			Expect(dbVersion.SemVer.String()).To(Equal("2.1.0"))
+			Expect(dbVersion.IsCBDB()).To(BeTrue())
+			Expect(dbVersion.IsGPDB()).To(BeFalse())
+		})
 		It("handles an unknown version string", func() {
 			versionStr := "Some Other Database 1.0.0"
 			dbVersion := dbconn.GPDBVersion{}

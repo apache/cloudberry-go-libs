@@ -19,7 +19,7 @@ const (
 
 const (
 	gpdbPattern = `\(Greenplum Database ([0-9]+\.[0-9]+\.[0-9]+)[^)]*\)`
-	cbdbPattern = `\(Apache Cloudberry ([0-9]+\.[0-9]+\.[0-9]+)[^)]*\)`
+	cbdbPattern = `\(Apache Cloudberry (?:Incubating )?([0-9]+\.[0-9]+\.[0-9]+)[^)]*\)`
 )
 
 // String provides string representation of DBType
